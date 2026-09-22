@@ -4,6 +4,7 @@
   "description": "Floating classroom noise meter with a loud-time counter",
   "main": "main.js",
   "private": true,
+  "author": "MaciejRud",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
