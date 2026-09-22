@@ -161,7 +161,8 @@
     shown += (target - shown) * k;
 
     const thr = settings.thr;
-    if (shown >= thr){ belowSince = null; if (aboveSince === null) aboveSince = now; if (!active && now - aboveSince >= ARM_MS){ active = true; activeStart = now; } }
+    // the timer counts from the first loud moment, so it shows 0:03 the instant it appears
+    if (shown >= thr){ belowSince = null; if (aboveSince === null) aboveSince = now; if (!active && now - aboveSince >= ARM_MS){ active = true; activeStart = aboveSince; } }
     else { aboveSince = null; if (belowSince === null) belowSince = now; if (active && now - belowSince >= RELEASE_MS) active = false; }
 
     const zone = shown >= thr ? 'bad' : shown >= thr * .75 ? 'warn' : 'ok';

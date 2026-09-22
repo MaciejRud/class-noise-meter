@@ -5,7 +5,8 @@ on top of every other window (projector). Teacher sets a threshold; after 3 s of
 noise above it a timer starts and counts up; it stops after 3 s of sustained quiet.
 
 **Owner decisions (2026-09-22)**
-- Timer variant (a): counts UP while the class is loud; no penalty at zero. Not a countdown.
+- Timer variant (a): counts UP while the class is loud, starting at 0:03 (the 3 s arming
+  time counts too — owner, 2026-09-22); no penalty at zero. Not a countdown.
 - Look: concept A3 from the mockup page — pastel palette (white widget, mint/yellow/coral zones),
   semicircular gauge 220×130 px, threshold tick on the arc, timer under the arc, NO "hałas" label.
   Mockup: https://claude.ai/artifact/MuFsGToisW2Wyz9vPe295G
