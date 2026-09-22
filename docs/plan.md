@@ -25,9 +25,16 @@ noise above it a timer starts and counts up; it stops after 3 s of sustained qui
 2. `index.html` MVP: getUserMedia → AnalyserNode → RMS dBFS → 0-100 level with
    "calibrate silence" (3 s of room noise = 0 %), smoothing (fast attack, slow release),
    3 s arm / 3 s release state machine, threshold + size sliders, settings in localStorage.
+   — built 2026-09-22, rendered in Chrome via `python -m http.server`; mic path (permission,
+   calibration, arm/release on a real room) waits for the owner's test — log goes to LEARNINGS.md.
+   Known trap handled: AudioContext created without a user gesture can start `suspended`
+   (mic "granted", reads all zeros) → `ctx.resume()` + button stays until `state === 'running'`;
+   `ctx` state is printed in the debug line.
 3. Electron: `main.js` — frameless, transparent, always-on-top (`screen-saver` level),
    visible on all workspaces incl. fullscreen, draggable; `askForMediaAccess` on macOS;
-   `NSMicrophoneUsageDescription` in Info.plist via electron-builder `extendInfo`.
+   `NSMicrophoneUsageDescription` in Info.plist via electron-builder `extendInfo`;
+   `app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')` so the
+   suspended-context trap from step 2 does not move into the exe.
 4. Build: electron-builder → `portable` target for Windows; GitHub Actions workflow
    → macOS dmg artifact. README with first-run instructions for both OSes.
 

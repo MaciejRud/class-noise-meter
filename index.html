@@ -70,7 +70,10 @@
 
   // ---- settings (localStorage is a per-machine convenience; defaults must work without it) ----
   const settings = { thr: 65, size: 100, floorDb: -60 };
-  try { Object.assign(settings, JSON.parse(localStorage.getItem('cichometr') || '{}')); } catch (e) { /* private mode etc. */ }
+  try {
+    const saved = JSON.parse(localStorage.getItem('cichometr') || '{}');
+    for (const k of Object.keys(settings)) if (Number.isFinite(saved[k])) settings[k] = saved[k];
+  } catch (e) { /* private mode, blocked storage: defaults stay */ }
   function save(){ try { localStorage.setItem('cichometr', JSON.stringify(settings)); } catch (e) { /* ignore */ } }
 
   function applyThreshold(){
@@ -88,18 +91,24 @@
   sizeIn.addEventListener('input', () => { settings.size = +sizeIn.value; applySize(); save(); });
 
   // ---- audio ----
-  let analyser = null, buf = null;
+  let ctx = null, analyser = null, buf = null;
   async function startMic(){
     startBtn.disabled = true;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const src = ctx.createMediaStreamSource(stream);
-      analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
-      src.connect(analyser);
-      buf = new Float32Array(analyser.fftSize);
-      $('micStatus').textContent = 'Mikrofon: działa';
-      startBtn.hidden = true; calBtn.disabled = false;
+      if (!ctx){
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = ctx.createMediaStreamSource(stream);
+        analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
+        src.connect(analyser);
+        buf = new Float32Array(analyser.fftSize);
+      }
+      // Autoplay policy: a context created without a user gesture may start 'suspended' and
+      // then reads all zeros while the mic looks granted. Resume, and keep the button until it runs.
+      await ctx.resume();
+      const running = ctx.state === 'running';
+      $('micStatus').textContent = running ? 'Mikrofon: działa' : 'Mikrofon: kliknij, żeby uruchomić';
+      startBtn.hidden = running; startBtn.disabled = false; calBtn.disabled = !running;
       widget.classList.remove('nomic');
     } catch (err) {
       $('micStatus').textContent = 'Mikrofon: brak zgody (' + err.name + ')';
@@ -164,7 +173,7 @@
       if (timerEl.textContent !== t) timerEl.textContent = t;
     }
 
-    $('dbg').textContent = (db === null ? '—' : db.toFixed(1)) + ' dBFS · ' + Math.round(shown) + ' % · zero ' + settings.floorDb.toFixed(0) + ' dB';
+    $('dbg').textContent = (db === null ? '—' : db.toFixed(1)) + ' dBFS · ' + Math.round(shown) + ' % · zero ' + settings.floorDb.toFixed(0) + ' dB · ctx ' + (ctx ? ctx.state : 'brak');
     $('fsm').textContent = active ? (belowSince !== null ? 'licznik · opada ' + ((now - belowSince) / 1000).toFixed(1) + ' s' : 'licznik')
                          : aboveSince !== null ? 'hałas ' + ((now - aboveSince) / 1000).toFixed(1) + ' / 3 s' : 'cisza';
     requestAnimationFrame(frame);
