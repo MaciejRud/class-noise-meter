@@ -36,8 +36,17 @@ noise above it a timer starts and counts up; it stops after 3 s of sustained qui
    `NSMicrophoneUsageDescription` in Info.plist via electron-builder `extendInfo`;
    `app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')` so the
    suspended-context trap from step 2 does not move into the exe.
+   — built 2026-09-22, run from source and from the portable exe on Windows: drag, hover bar,
+   settings panel (threshold, size, opacity, arm/release seconds, calibration), edge/corner
+   resize, position + settings persisted. Owner reviewed live; fixes: panel hide (CSS
+   specificity), opacity on the card only, no text selection / focus ring.
 4. Build: electron-builder → `portable` target for Windows; GitHub Actions workflow
    → macOS dmg artifact. README with first-run instructions for both OSes.
+   — done 2026-09-22: repo github.com/MaciejRud/class-noise-meter (public), run 35715297583
+   green on mac + windows, `dist/ci/Cicho-metr-0.1.0-universal.dmg` (227 MB) downloaded,
+   tag v0.1.0. Windows exe also built locally: `dist/Cicho-metr 0.1.0.exe` (100 MB).
+   Open: default Electron icon (no exe resource editing without signing tools), first macOS
+   run still untested — see done criterion.
 
 **Done criterion**
 Teacher's laptop (Mac) shows the gauge over her slides, needle follows the room, timer starts
