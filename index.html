@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cicho-metr</title>
+<style>
+  :root{
+    --w-bg:#FFFFFF; --w-fg:#3B3651; --w-ok:#7ED3A0; --w-warn:#FFD166; --w-bad:#FF7B7B; --w-track:#EEEBF6;
+    --page:#F3F1F8; --muted:#6B6780; --line:#DCD8E8;
+    --scale:1;
+  }
+  html,body{ height:100%; margin:0; }
+  body{ background:var(--page); color:var(--w-fg); font-family:"Segoe UI",system-ui,sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; }
+
+  /* ---- the widget: concept A3, 220x130 at scale 1 ---- */
+  .w{ --zone:var(--w-ok); width:220px; height:130px; border-radius:20px; padding:10px 14px 6px; box-sizing:border-box; position:relative;
+      background:var(--w-bg); color:var(--w-fg); box-shadow:0 8px 24px rgba(0,0,0,.22); transform:scale(var(--scale)); transform-origin:center; }
+  .w[data-zone="warn"]{ --zone:var(--w-warn); }
+  .w[data-zone="bad"]{ --zone:var(--w-bad); }
+  .w svg{ width:100%; height:auto; display:block; overflow:visible; }
+  .arc-track{ stroke:var(--w-track); }
+  .arc-fill{ stroke:var(--zone); transition:stroke-dashoffset .1s linear, stroke .35s; }
+  .tick{ stroke:var(--w-fg); opacity:.75; }
+  .timer{ position:absolute; left:0; right:0; bottom:14px; text-align:center; font-size:28px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:.02em; opacity:.28; transition:opacity .3s, color .3s; }
+  .w.on .timer{ opacity:1; color:var(--w-bad); }
+  .w.nomic .timer{ font-size:13px; font-weight:400; opacity:.8; bottom:18px; }
+
+  /* ---- settings (below the widget in the browser MVP) ---- */
+  .panel{ display:grid; gap:12px; background:var(--w-bg); border:1px solid var(--line); border-radius:12px; padding:14px 18px; font-size:13px; color:var(--muted); min-width:260px; }
+  .panel label{ display:grid; gap:4px; }
+  .panel label b{ color:var(--w-fg); font-variant-numeric:tabular-nums; font-weight:600; }
+  .panel input[type=range]{ width:100%; accent-color:#8C7BE0; }
+  .panel button{ font:inherit; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:#F7F5FC; color:var(--w-fg); cursor:pointer; }
+  .panel button:disabled{ opacity:.5; cursor:default; }
+  .row{ display:flex; align-items:center; gap:10px; justify-content:space-between; }
+  .dbg{ font-variant-numeric:tabular-nums; font-size:12px; }
+  @media (prefers-reduced-motion: reduce){ .w *{ transition:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="w" id="widget" data-zone="ok">
+  <svg viewBox="0 0 200 110" aria-hidden="true">
+    <path class="arc-track" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round"/>
+    <path class="arc-fill" id="arc" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round"/>
+    <line class="tick" id="tick" stroke-width="3" stroke-linecap="round"/>
+  </svg>
+  <span class="timer" id="timer">0:00</span>
+</div>
+
+<div class="panel">
+  <div class="row"><span id="micStatus">Mikrofon: czekam na zgodę…</span><button id="start">Włącz mikrofon</button></div>
+  <label>Próg hałasu <b id="thrOut">65 %</b><input type="range" id="thr" min="20" max="95" value="65"></label>
+  <label>Rozmiar <b id="sizeOut">100 %</b><input type="range" id="size" min="75" max="250" value="100"></label>
+  <div class="row"><span>Cisza w klasie = 0 %</span><button id="cal" disabled>Kalibruj (3 s)</button></div>
+  <div class="row dbg"><span id="dbg">— dB</span><span id="fsm">cisza</span></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  const ARC = Math.PI * 80;           // length of the semicircle path, r = 80
+  const ARM_MS = 3000, RELEASE_MS = 3000, CAL_MS = 3000;
+  const SPAN_DB = 40;                 // 0 % = calibrated floor, 100 % = floor + SPAN_DB
+
+  const $ = id => document.getElementById(id);
+  const widget = $('widget'), arc = $('arc'), tick = $('tick'), timerEl = $('timer');
+  const thrIn = $('thr'), sizeIn = $('size'), calBtn = $('cal'), startBtn = $('start');
+
+  // ---- settings (localStorage is a per-machine convenience; defaults must work without it) ----
+  const settings = { thr: 65, size: 100, floorDb: -60 };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem('cichometr') || '{}')); } catch (e) { /* private mode etc. */ }
+  function save(){ try { localStorage.setItem('cichometr', JSON.stringify(settings)); } catch (e) { /* ignore */ } }
+
+  function applyThreshold(){
+    $('thrOut').textContent = settings.thr + ' %';
+    const a = Math.PI * (1 - settings.thr / 100);
+    tick.setAttribute('x1', (100 + Math.cos(a) * 66).toFixed(1)); tick.setAttribute('y1', (100 - Math.sin(a) * 66).toFixed(1));
+    tick.setAttribute('x2', (100 + Math.cos(a) * 94).toFixed(1)); tick.setAttribute('y2', (100 - Math.sin(a) * 94).toFixed(1));
+  }
+  function applySize(){
+    $('sizeOut').textContent = settings.size + ' %';
+    document.documentElement.style.setProperty('--scale', settings.size / 100);
+  }
+  thrIn.value = settings.thr; sizeIn.value = settings.size; applyThreshold(); applySize();
+  thrIn.addEventListener('input', () => { settings.thr = +thrIn.value; applyThreshold(); save(); });
+  sizeIn.addEventListener('input', () => { settings.size = +sizeIn.value; applySize(); save(); });
+
+  // ---- audio ----
+  let analyser = null, buf = null;
+  async function startMic(){
+    startBtn.disabled = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
+      src.connect(analyser);
+      buf = new Float32Array(analyser.fftSize);
+      $('micStatus').textContent = 'Mikrofon: działa';
+      startBtn.hidden = true; calBtn.disabled = false;
+      widget.classList.remove('nomic');
+    } catch (err) {
+      $('micStatus').textContent = 'Mikrofon: brak zgody (' + err.name + ')';
+      timerEl.textContent = 'brak mikrofonu';
+      widget.classList.add('nomic');
+      startBtn.disabled = false;
+    }
+  }
+  startBtn.addEventListener('click', startMic);
+  // Chrome allows getUserMedia without a click on a page that already has permission; try once.
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) startMic();
+  else $('micStatus').textContent = 'Mikrofon: przeglądarka nie wspiera getUserMedia';
+
+  function readDb(){
+    analyser.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    return rms > 0 ? 20 * Math.log10(rms) : -100;
+  }
+
+  // ---- calibration: 3 s of the quiet room becomes 0 % ----
+  let calUntil = 0, calSamples = [];
+  calBtn.addEventListener('click', () => { calUntil = performance.now() + CAL_MS; calSamples = []; calBtn.disabled = true; calBtn.textContent = 'Cicho… 3 s'; });
+
+  // ---- level + state machine ----
+  let shown = 0, aboveSince = null, belowSince = null, active = false, activeStart = 0, last = performance.now();
+  const fmt = ms => { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+  function frame(now){
+    const dt = Math.min(100, now - last); last = now;
+    let db = null, target = 0;
+    if (analyser){
+      db = readDb();
+      if (calUntil){
+        calSamples.push(db);
+        const left = calUntil - now;
+        calBtn.textContent = 'Cicho… ' + Math.ceil(left / 1000) + ' s';
+        if (left <= 0){
+          // median of the quiet room, +3 dB headroom so silence sits at 0 % and does not flicker
+          calSamples.sort((a, b) => a - b);
+          settings.floorDb = calSamples[Math.floor(calSamples.length / 2)] + 3;
+          save(); calUntil = 0; calBtn.disabled = false; calBtn.textContent = 'Kalibruj (3 s)';
+        }
+      }
+      target = Math.max(0, Math.min(100, (db - settings.floorDb) / SPAN_DB * 100));
+    }
+    // fast attack, slow release — a flickering meter gets ignored by kids
+    const k = target > shown ? 1 - Math.pow(0.001, dt / 1000) : 1 - Math.pow(0.15, dt / 1000);
+    shown += (target - shown) * k;
+
+    const thr = settings.thr;
+    if (shown >= thr){ belowSince = null; if (aboveSince === null) aboveSince = now; if (!active && now - aboveSince >= ARM_MS){ active = true; activeStart = now; } }
+    else { aboveSince = null; if (belowSince === null) belowSince = now; if (active && now - belowSince >= RELEASE_MS) active = false; }
+
+    const zone = shown >= thr ? 'bad' : shown >= thr * .75 ? 'warn' : 'ok';
+    if (widget.dataset.zone !== zone) widget.dataset.zone = zone;
+    widget.classList.toggle('on', active);
+    arc.setAttribute('stroke-dashoffset', (ARC * (1 - shown / 100)).toFixed(2));
+    if (analyser){
+      const t = active ? fmt(now - activeStart) : '0:00';
+      if (timerEl.textContent !== t) timerEl.textContent = t;
+    }
+
+    $('dbg').textContent = (db === null ? '—' : db.toFixed(1)) + ' dBFS · ' + Math.round(shown) + ' % · zero ' + settings.floorDb.toFixed(0) + ' dB';
+    $('fsm').textContent = active ? (belowSince !== null ? 'licznik · opada ' + ((now - belowSince) / 1000).toFixed(1) + ' s' : 'licznik')
+                         : aboveSince !== null ? 'hałas ' + ((now - aboveSince) / 1000).toFixed(1) + ' / 3 s' : 'cisza';
+    requestAnimationFrame(frame);
+  }
+  arc.setAttribute('stroke-dasharray', ARC.toFixed(2));
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
