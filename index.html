@@ -43,7 +43,7 @@
 <div class="w" id="widget" data-zone="ok">
   <svg viewBox="0 0 200 110" aria-hidden="true">
     <path class="arc-track" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round"/>
-    <path class="arc-fill" id="arc" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round"/>
+    <path class="arc-fill" id="arc" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke-width="16" stroke-linecap="round" stroke-dasharray="251.33" stroke-dashoffset="251.33"/>
     <line class="tick" id="tick" stroke-width="3" stroke-linecap="round"/>
   </svg>
   <span class="timer" id="timer">0:00</span>
@@ -169,7 +169,6 @@
                          : aboveSince !== null ? 'hałas ' + ((now - aboveSince) / 1000).toFixed(1) + ' / 3 s' : 'cisza';
     requestAnimationFrame(frame);
   }
-  arc.setAttribute('stroke-dasharray', ARC.toFixed(2));
   requestAnimationFrame(frame);
 })();
 </script>
