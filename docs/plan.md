@@ -45,6 +45,9 @@ noise above it a timer starts and counts up; it stops after 3 s of sustained qui
    — done 2026-09-22: repo github.com/MaciejRud/class-noise-meter (public), run 35715297583
    green on mac + windows, `dist/ci/Cicho-metr-0.1.0-universal.dmg` (227 MB) downloaded,
    tag v0.1.0. Windows exe also built locally: `dist/Cicho-metr 0.1.0.exe` (100 MB).
+   Mac app is ad-hoc signed (`mac.identity: "-"`, `hardenedRuntime: false`) — CI step
+   `verify signature` proves it: run 35717730237 `Signature=adhoc`, `valid on disk`,
+   `satisfies its Designated Requirement`. Fully unsigned arm64 apps die on launch.
    Open: default Electron icon (no exe resource editing without signing tools), first macOS
    run still untested — see done criterion.
 
