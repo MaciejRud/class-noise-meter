@@ -39,9 +39,12 @@
         }
       ],
       "category": "public.app-category.education",
-      "hardenedRuntime": false,
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Cicho-metr mierzy poziom hałasu w klasie."
+      },
+      "sign": {
+        "identity": "-",
+        "hardenedRuntime": false
       }
     }
   },
