@@ -20,8 +20,16 @@
 
   /* ---- the widget: concept A3, 220x130 at scale 1; zoom (not transform) so the layout box scales too ---- */
   .w{ --zone:var(--w-ok); width:220px; height:130px; border-radius:20px; padding:10px 14px 6px; box-sizing:border-box; position:relative;
-      background:var(--w-bg); color:var(--w-fg); box-shadow:0 8px 24px rgba(0,0,0,.22); zoom:var(--scale); opacity:var(--opacity,1); }
-  .w:hover{ opacity:1; }
+      color:var(--w-fg); zoom:var(--scale);
+      /* opacity applies to the card only; the arc, the tick and the timer stay solid */
+      background:rgba(255,255,255,var(--opacity,1)); box-shadow:0 8px 24px rgba(0,0,0,calc(.22 * var(--opacity,1))); }
+  /* resize grips: right edge, bottom edge, corner — drag scales the whole widget */
+  .grip{ position:absolute; -webkit-app-region:no-drag; z-index:2; }
+  .grip-r{ top:12px; right:-4px; bottom:12px; width:10px; cursor:ew-resize; }
+  .grip-b{ left:12px; bottom:-4px; right:12px; height:10px; cursor:ns-resize; }
+  .grip-c{ right:-4px; bottom:-4px; width:18px; height:18px; cursor:nwse-resize; }
+  .grip-c::after{ content:""; position:absolute; right:7px; bottom:7px; width:7px; height:7px; border-right:2px solid var(--w-fg); border-bottom:2px solid var(--w-fg); border-radius:0 0 3px 0; opacity:0; transition:opacity .2s; }
+  .w:hover .grip-c::after{ opacity:.45; }
   .bar{ position:absolute; top:6px; right:8px; display:flex; gap:2px; opacity:0; transition:opacity .2s; -webkit-app-region:no-drag; }
   .w:hover .bar{ opacity:1; }
   .bar button{ width:22px; height:22px; border:0; border-radius:6px; background:transparent; color:var(--w-fg); font:14px/1 "Segoe UI",system-ui,sans-serif; cursor:pointer; opacity:.6; }
@@ -62,12 +70,13 @@
   </svg>
   <span class="timer" id="timer">0:00</span>
   <div class="bar"><button id="gear" title="Ustawienia">&#9881;</button><button id="quit" title="Zamknij">&#10005;</button></div>
+  <div class="grip grip-r" data-axis="x"></div><div class="grip grip-b" data-axis="y"></div><div class="grip grip-c" data-axis="xy"></div>
 </div>
 
 <div class="panel" id="panel">
   <div class="row"><span id="micStatus">Mikrofon: czekam na zgodę…</span><button id="start">Włącz mikrofon</button></div>
   <label>Próg hałasu <b id="thrOut">65 %</b><input type="range" id="thr" min="20" max="95" value="65"></label>
-  <label>Rozmiar <b id="sizeOut">100 %</b><input type="range" id="size" min="75" max="250" value="100"></label>
+  <label>Rozmiar <b id="sizeOut">100 %</b><input type="range" id="size" min="50" max="300" value="100"></label>
   <label>Przezroczystość <b id="opacityOut">100 %</b><input type="range" id="opacity" min="30" max="100" value="100"></label>
   <div class="two">
     <label>Pokaż licznik po <b id="armOut">3 s</b><input type="range" id="arm" min="1" max="10" step="0.5" value="3"></label>
@@ -124,6 +133,24 @@
     const input = $(key);
     input.value = settings[key]; apply[key](settings[key]);
     input.addEventListener('input', () => { settings[key] = +input.value; apply[key](settings[key]); save(); });
+  }
+
+  // ---- resize by dragging an edge or the corner: proportional, so it is just a change of scale ----
+  const BASE_W = 220, BASE_H = 130, SIZE_MIN = 50, SIZE_MAX = 300;
+  for (const grip of document.querySelectorAll('.grip')){
+    grip.addEventListener('pointerdown', e => {
+      e.preventDefault(); grip.setPointerCapture(e.pointerId);
+      const startSize = settings.size, x0 = e.clientX, y0 = e.clientY, axis = grip.dataset.axis;
+      const onMove = ev => {
+        const fx = 1 + (ev.clientX - x0) / (BASE_W * startSize / 100);
+        const fy = 1 + (ev.clientY - y0) / (BASE_H * startSize / 100);
+        const f = axis === 'x' ? fx : axis === 'y' ? fy : Math.max(fx, fy);
+        settings.size = Math.round(Math.max(SIZE_MIN, Math.min(SIZE_MAX, startSize * f)));
+        $('size').value = settings.size; apply.size(settings.size);
+      };
+      const onUp = () => { grip.removeEventListener('pointermove', onMove); grip.removeEventListener('pointerup', onUp); save(); };
+      grip.addEventListener('pointermove', onMove); grip.addEventListener('pointerup', onUp);
+    });
   }
 
   // ---- audio ----
