@@ -17,6 +17,11 @@
   html.app body{ background:transparent; align-items:flex-start; justify-content:flex-start; padding:20px; box-sizing:border-box; overflow:hidden; }
   html.app #root{ justify-items:start; }
   html.app .w{ -webkit-app-region:drag; cursor:move; }
+  /* no text selection on a dashboard: dragging the card must not paint the timer blue */
+  .w, .panel{ user-select:none; -webkit-user-drag:none; }
+  /* mouse clicks leave no focus ring; keyboard focus stays visible */
+  .w button:focus, .panel button:focus{ outline:none; }
+  .w button:focus-visible, .panel button:focus-visible{ outline:2px solid #8C7BE0; outline-offset:2px; }
 
   /* ---- the widget: concept A3, 220x130 at scale 1; zoom (not transform) so the layout box scales too ---- */
   .w{ --zone:var(--w-ok); width:220px; height:130px; border-radius:20px; padding:10px 14px 6px; box-sizing:border-box; position:relative;
