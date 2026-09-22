@@ -17,6 +17,8 @@ a projector.
 - Mac: otwórz `.dmg`, przeciągnij Cicho-metr do Aplikacji, uruchom. Gdy system odmówi
   („nie można zweryfikować dewelopera"): *Ustawienia systemowe* → *Prywatność i ochrona* →
   na dole *Otwórz mimo to*. Tylko raz. Potem zgódź się na dostęp do mikrofonu.
+  Jeśli mikrofon został odrzucony (zegar pokazuje „brak mikrofonu"): *Ustawienia systemowe* →
+  *Prywatność i ochrona* → *Mikrofon* → włącz Cicho-metr i uruchom aplikację ponownie.
 
 **Obsługa**
 
