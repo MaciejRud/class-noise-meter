@@ -42,10 +42,8 @@
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Cicho-metr mierzy poziom hałasu w klasie."
       },
-      "sign": {
-        "identity": "-",
-        "hardenedRuntime": false
-      }
+      "identity": "-",
+      "hardenedRuntime": false
     }
   },
   "devDependencies": {
